@@ -1,14 +1,35 @@
-import { TestBed, async } from '@angular/core/testing';
+import { TestBed, async, tick, fakeAsync } from '@angular/core/testing';
 import { AppComponent } from './app.component';
+import { ValueContainerComponent } from './components/value-container/value-container.component';
+import { ValueViewerComponent } from './components/value-container/value-viewer/value-viewer.component';
+import { CounterReducer, State } from './store/reducers/value-page.reducers';
+import { EffectsModule } from '@ngrx/effects';
+import { CounterEffects } from './store/effects/value-page.effects';
+import { StoreModule, Store } from '@ngrx/store';
+import { change, reset } from './store/actions/value-page.actions';
 
 describe('AppComponent', () => {
+  let store: Store<State>;
+
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [
-        AppComponent
+        AppComponent,
+
+        ValueViewerComponent,
+        ValueContainerComponent
+      ],
+      imports: [
+        StoreModule.forRoot({ count: CounterReducer }),
+        EffectsModule.forRoot([CounterEffects])
       ],
     }).compileComponents();
   }));
+
+  beforeEach(() => {
+    store = TestBed.get(Store);
+    spyOn(store, 'dispatch').and.callThrough();
+  });
 
   it('should create the app', () => {
     const fixture = TestBed.createComponent(AppComponent);
@@ -16,16 +37,38 @@ describe('AppComponent', () => {
     expect(app).toBeTruthy();
   });
 
-  it(`should have as title 'desna-test'`, () => {
+  it(`should start counter`, fakeAsync(() => {
     const fixture = TestBed.createComponent(AppComponent);
     const app = fixture.debugElement.componentInstance;
-    expect(app.title).toEqual('desna-test');
-  });
+    app.start();
+    tick(1000);
+    expect(store.dispatch).toHaveBeenCalledWith(change());
 
-  it('should render title in a h1 tag', () => {
-    const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    const compiled = fixture.debugElement.nativeElement;
-    expect(compiled.querySelector('h1').textContent).toContain('Welcome to desna-test!');
-  });
+    app.timerSub.unsubscribe();
+  }));
+
+  it(`should stop counter`, fakeAsync(() => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.debugElement.componentInstance;
+    app.start();
+    tick(1000);
+    app.stop();
+    expect(app.timerSub.closed).toBeTruthy();
+  }));
+
+  it(`should reset counter`, fakeAsync(() => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.debugElement.componentInstance;
+    app.start();
+    tick(1000);
+    app.reset();
+    expect(app.timerSub.closed).toBeTruthy();
+    expect(store.dispatch).toHaveBeenCalledWith(reset());
+
+    fixture.detectChanges();
+    app.timerSub.unsubscribe();
+  }));
+
+
 });
